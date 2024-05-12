@@ -1,6 +1,8 @@
 package dev.benndorf.minisniffer.mcdata
 
 import ArrayField
+import BitSetEntry
+import BitSetField
 import BufferField
 import ContainerField
 import CountedBufferField
@@ -74,6 +76,7 @@ fun parseFields(name: String, side: ProtocolData.Side): LinkedHashMap<String, An
 
 fun parseType(fieldType: JsonElement?, fieldName: String): Any {
     return when (fieldType) {
+        // TODO look up if its native for composite!
         is JsonPrimitive -> fieldType.jsonPrimitive.content
 
         is JsonArray -> when (val complexType = fieldType[0].jsonPrimitive.content) {
@@ -104,8 +107,14 @@ fun parseType(fieldType: JsonElement?, fieldName: String): Any {
             }
             // TODO implement particleData
             "particleData" -> complexType
-            // TODO implement bitfield
-            "bitfield" -> complexType
+            "bitfield" -> BitSetField(fieldType[1].jsonArray.map {
+                val entry = it.jsonObject
+                BitSetEntry(
+                    entry["name"]!!.jsonPrimitive.content,
+                    entry["size"]!!.jsonPrimitive.int,
+                    entry["signed"]!!.jsonPrimitive.boolean
+                )
+            })
             // TODO implement topBitSetTerminatedArray
             "topBitSetTerminatedArray" -> complexType
             else -> {

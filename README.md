@@ -14,7 +14,7 @@ This is work in progress. Here is a small todo list:
   - [x] parse option
   - [x] parse buffer
   - [ ] parse particleData
-  - [ ] parse bitfield
+  - [x] parse bitfield
   - [ ] parse topBitSetTerminatedArray
   - [ ] map protocol version to string
 - [ ] Implement minecraft protocol
@@ -24,6 +24,7 @@ This is work in progress. Here is a small todo list:
   - [x] nbt
   - [ ] command node
   - [ ] entity metadata
+  - [x] bitsetfield
   - [ ] compression
   - [ ] encryption
   - [ ] fix ignored packets for sending
@@ -41,3 +42,6 @@ Updates:
   initial commit, basic logging proxy, gets stuck in config phase  
   SLP: https://pastes.dev/P9Za2ysBKQ  
   Join: https://pastes.dev/ZuW3GudtTF
+* 12.05.2024 v2:
+  bunch of more data types (including nbt), gets stuff sending a few packets, so we have to skip, but parses many
+  https://pastes.dev/o4m7RvxH7Q

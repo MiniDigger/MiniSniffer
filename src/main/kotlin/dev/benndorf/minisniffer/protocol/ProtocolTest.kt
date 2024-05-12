@@ -6,12 +6,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 
 // TODO fix these, sending them causes the client to stall
-val ignoredForSending = setOf("registry_data", "tags", "declare_recipes", "map_chunk", "advancements")
+val ignoredForSending = setOf("registry_data", "tags", "declare_recipes", "map_chunk")
 val ignoredForParsing = setOf(
     // TODO switch
-    "declare_recipes", "unlock_recipes", "player_info", "sound_effect",
-    // TODO bitfield
-    "advancements",
+    "declare_recipes", "unlock_recipes", "player_info", "sound_effect", "advancements",
     // TODO command_node
     "declare_commands",
     // TODO entityMetadata

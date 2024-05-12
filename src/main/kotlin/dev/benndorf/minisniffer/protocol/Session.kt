@@ -42,7 +42,7 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
                 if (protocolData == null) throw IllegalStateException("Protocol data not loaded")
                 val packet = fromServer.readMinecraftPacket(
                     { protocolData!![serverState].toClient },
-                    { "S -> C [${serverState.name.padStart(13)}]" }
+                    { "S -> C [${serverState.toPrettyString()}]" }
                 )
                 if (!ignoredForSending.contains(packet.name)) {
                     toClient.sendMinecraftPacket(packet)
@@ -63,7 +63,7 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
                 if (protocolData == null) throw IllegalStateException("Protocol data not loaded")
                 val packet = fromClient.readMinecraftPacket(
                     { protocolData!![clientState].toServer },
-                    { "C -> S [${clientState.name.padStart(13)}]" }
+                    { "C -> S [${clientState.toPrettyString()}]" }
                 )
                 toServer.sendMinecraftPacket(packet)
                 handleClientPacket(packet)

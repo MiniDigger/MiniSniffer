@@ -41,7 +41,17 @@ enum class ProtocolState {
     STATUS,
     LOGIN,
     CONFIGURATION,
-    PLAY
+    PLAY;
+
+    fun toPrettyString(): String {
+        return when (this) {
+            HANDSHAKING -> "Hand"
+            STATUS -> "Stat"
+            LOGIN -> "Logn"
+            CONFIGURATION -> "Conf"
+            PLAY -> "Play"
+        }
+    }
 }
 
 @Serializable
@@ -128,6 +138,10 @@ data class CountedBufferField(val count: Int)
 data class ArrayField(val type: Any, val countType: String)
 data class ContainerField(val fields: Map<String, Any>)
 data class OptionalField(val type: Any)
+data class BitSetField(val entries: List<BitSetEntry>) {
+    val numBytes = entries.sumOf { it.bits } / 8
+}
+data class BitSetEntry(val name: String, val bits: Int, val signed: Boolean)
 
 data class Position(val x: Int, val y: Int, val z: Int)
 data class Slot(val item: Int, val count: Byte, val nbt: NBT)

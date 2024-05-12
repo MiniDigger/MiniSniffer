@@ -1,3 +1,4 @@
+import dev.benndorf.minisniffer.protocol.BitReader
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import io.ktor.utils.io.streams.*
@@ -112,7 +113,7 @@ suspend fun ByteReadChannel.readMinecraftPacket(
     val packetDefinition =
         protocolData().packetsById[id] ?: throw IllegalStateException("$prefix Unknown packet id $id")
     prefix = "$prefix[${packetDefinition.name.padStart(25)}]"
-    println("$prefix start reading packet ${packetDefinition.fieldDefinitions}")
+//    println("$prefix start reading packet ${packetDefinition.fieldDefinitions}")
     if (ignoredForParsing.contains(packetDefinition.name)) {
         return Packet(id, packetDefinition.name, packetDefinition.fieldDefinitions, mapOf(), data)
     }
@@ -121,7 +122,7 @@ suspend fun ByteReadChannel.readMinecraftPacket(
     }
 
     val parsedPacket = Packet(id, packetDefinition.name, packetDefinition.fieldDefinitions, fields, data)
-    println("$prefix got packet $parsedPacket")
+    println("$prefix parsed packet $fields")
     if (hexLogging) {
         println(data.copy().readBytes().toHexString(format))
     }
@@ -148,6 +149,7 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
         "UUID" -> readUuid()
         "restBuffer" -> readBytes()
         "anonymousNbt" -> readNbt()
+        // TODO don't implement them manually, look them up in the protocol...
         "position" -> {
             val long = readLong()
             val x = long shr 38
@@ -201,6 +203,12 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
             Optional.ofNullable(readMinecraftType(name, type.type, debugPrefix))
         } else {
             Optional.empty()
+        }
+
+        is BitSetField -> {
+            val reader = BitReader(readBytes(type.numBytes))
+
+            type.entries.associate { it.name to reader.readBits(it.bits) }
         }
 
         else -> throw IllegalStateException("$prefix Unknown type $type for field $name")
