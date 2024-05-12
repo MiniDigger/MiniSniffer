@@ -1,7 +1,9 @@
 package dev.benndorf.minisniffer.mcdata
 
 import ArrayField
+import BufferField
 import ContainerField
+import CountedBufferField
 import DataPaths
 import OptionalField
 import Packet
@@ -89,8 +91,17 @@ fun parseType(fieldType: JsonElement?, fieldName: String): Any {
             // TODO implement switch
             "switch" -> complexType
             "option" -> OptionalField(parseType(fieldType[1], fieldName))
-            // TODO implement buffer
-            "buffer" -> complexType
+            "buffer" -> {
+                val countType = fieldType[1].jsonObject["countType"]
+                val count = fieldType[1].jsonObject["count"]
+                if (countType != null) {
+                    BufferField(countType.jsonPrimitive.content)
+                } else if (count != null) {
+                    CountedBufferField(count.jsonPrimitive.int)
+                } else {
+                    throw IllegalArgumentException("buffer field $fieldName is invalid; $fieldType")
+                }
+            }
             // TODO implement particleData
             "particleData" -> complexType
             // TODO implement bitfield

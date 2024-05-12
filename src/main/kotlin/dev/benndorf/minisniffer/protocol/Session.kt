@@ -3,6 +3,7 @@ package dev.benndorf.minisniffer.protocol
 import Packet
 import ProtocolState.*
 import dev.benndorf.minisniffer.mcdata.parseProtocolData
+import ignoredForSending
 import io.ktor.network.sockets.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.CoroutineName
@@ -12,6 +13,7 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
 import readMinecraftPacket
 import sendMinecraftPacket
+import java.net.SocketException
 import kotlin.coroutines.cancellation.CancellationException
 
 data class Session(val clientSocket: Socket, val serverSocket: Socket) :
@@ -40,10 +42,9 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
                 if (protocolData == null) throw IllegalStateException("Protocol data not loaded")
                 val packet = fromServer.readMinecraftPacket(
                     { protocolData!![serverState].toClient },
-                    { "S -> C [$serverState]" }
+                    { "S -> C [${serverState.name.padStart(13)}]" }
                 )
-                // todo fix registry data and tags
-                if (packet.name != "registry_data" && packet.name != "tags") {
+                if (!ignoredForSending.contains(packet.name)) {
                     toClient.sendMinecraftPacket(packet)
                 } else {
                     packet.data?.readBytes()
@@ -62,7 +63,7 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
                 if (protocolData == null) throw IllegalStateException("Protocol data not loaded")
                 val packet = fromClient.readMinecraftPacket(
                     { protocolData!![clientState].toServer },
-                    { "C -> S [$clientState]" }
+                    { "C -> S [${clientState.name.padStart(13)}]" }
                 )
                 toServer.sendMinecraftPacket(packet)
                 handleClientPacket(packet)
@@ -73,8 +74,15 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
     }
 
     private fun handleError(error: Throwable, side: String) = when (error) {
-        is ClosedReceiveChannelException -> println("Got EOF from $side")
+        is ClosedReceiveChannelException -> {
+            println("Got EOF from $side")
+            close()
+        }
         is CancellationException -> close(error)
+        is SocketException -> {
+            println("Error reading from $side ${error.message}")
+            close()
+        }
         else -> {
             println("Error reading from $side ${error.message}")
             error.printStackTrace()
@@ -86,7 +94,6 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
         when (packet.name) {
             "finish_configuration" -> {
                 serverState = PLAY
-                println("advancing server to $serverState")
             }
         }
     }
@@ -102,18 +109,15 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
                 protocolVersion = packet.fields["protocolVersion"] as Int
                 protocolData = parseProtocolData("1.20.4") // TODO parse via protocol version
                 serverState = clientState
-                println("advancing to $serverState")
             }
 
             "login_acknowledged" -> {
                 clientState = CONFIGURATION
                 serverState = CONFIGURATION
-                println("advancing to $serverState")
             }
 
             "finish_configuration" -> {
                 clientState = PLAY
-                println("advancing client to $clientState")
             }
         }
     }

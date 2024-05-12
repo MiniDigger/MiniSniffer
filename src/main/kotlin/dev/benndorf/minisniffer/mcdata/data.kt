@@ -96,7 +96,7 @@ data class Packet(
     val id: Int,
     val name: String,
     val fieldDefinitions: LinkedHashMap<String, Any>,
-    val fields: Map<String, Any> = LinkedHashMap(),
+    val fields: Map<String, Any?> = LinkedHashMap(),
     val data: ByteReadPacket? = null
 ) {
     override fun toString(): String {
@@ -122,6 +122,11 @@ data class Packet(
     }
 }
 
+data class BufferField( val countType: String)
+data class CountedBufferField(val count: Int)
 data class ArrayField(val type: Any, val countType: String)
 data class ContainerField(val fields: Map<String, Any>)
 data class OptionalField(val type: Any)
+
+data class Position(val x: Int, val y: Int, val z: Int)
+data class Slot(val item: Short, val count: Byte, val nbt: ByteArray)

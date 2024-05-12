@@ -83,7 +83,7 @@ suspend fun ByteWriteChannel.sendMinecraftPacket(packet: Packet) {
     writeVarInt(bytes.size)
     writeAvailable(bytes)
     flush()
-    println("flushed packet ${packet.name} with size ${bytes.size}")
+//    println("flushed packet ${packet.name} with size ${bytes.size}")
     if (hexLogging) {
         println(bytes.toHexString(format))
     }
@@ -102,8 +102,11 @@ suspend fun ByteReadChannel.readMinecraftPacket(
     var prefix = debugPrefix()
     val packetDefinition =
         protocolData().packetsById[id] ?: throw IllegalStateException("$prefix Unknown packet id $id")
-    prefix = "$prefix[${packetDefinition.name}]"
+    prefix = "$prefix[${packetDefinition.name.padStart(25)}]"
     println("$prefix start reading packet ${packetDefinition.fieldDefinitions}")
+    if (ignoredForParsing.contains(packetDefinition.name)) {
+        return Packet(id, packetDefinition.name, packetDefinition.fieldDefinitions, mapOf(), data)
+    }
     val fields = packetDefinition.fieldDefinitions.entries.associate { (name, type) ->
         name to packet.readMinecraftType(name, type) { prefix }
     }
@@ -118,7 +121,7 @@ suspend fun ByteReadChannel.readMinecraftPacket(
 }
 
 @OptIn(ExperimentalUnsignedTypes::class)
-fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () -> String): Any {
+fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () -> String): Any? {
     val prefix = debugPrefix()
     // println("$prefix reading field $name of type $type")
     return when (type) {
@@ -128,18 +131,40 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
         "i8" -> readByte()
         "u8" -> readUByte()
         "u16" -> readUShort()
+        "i16" -> readShort()
         "i32" -> readInt()
         "f32" -> readFloat()
         "i64" -> readLong()
         "f64" -> readDouble()
         "UUID" -> readUuid()
-        "buffer" -> readBytes(readVarInt())
         "restBuffer" -> readBytes()
+        "position" -> {
+            val long = readLong()
+            val x = long shr 38
+            val y = long shl 52 shr 52
+            val z = long shl 26 shr 38
+            Position(x.toInt(), y.toInt(), z.toInt())
+        }
+
+        "slot" -> {
+            val present = readByte()
+            if (present == 0.toByte()) {
+                return null
+            }
+            val item = readShort()
+            val count = readByte()
+            val nbt = readBytes()
+            Slot(item, count, nbt)
+        }
+
+        is BufferField -> readBytes(readMinecraftType("$name.size", type.countType, debugPrefix) as Int)
+        is CountedBufferField -> readBytes(type.count)
+
         is ArrayField -> {
-            val count = readMinecraftType(name, type.countType, debugPrefix) as Int
-            val array = mutableListOf<Any>()
+            val count = readMinecraftType("$name.size", type.countType, debugPrefix) as Int
+            val array = mutableListOf<Any?>()
             repeat(count) {
-                array.add(readMinecraftType(name, type.type, debugPrefix))
+                array.add(readMinecraftType("$name.entry", type.type, debugPrefix))
             }
             array
         }
@@ -149,7 +174,7 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
         }
 
         is OptionalField -> if (readByte() == 1.toByte()) {
-            Optional.of(readMinecraftType(name, type.type, debugPrefix))
+            Optional.ofNullable(readMinecraftType(name, type.type, debugPrefix))
         } else {
             Optional.empty()
         }
@@ -168,7 +193,11 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
             tags
         }
         // todo fix codec
-        "anonymousNbt" -> readBytes()
+        "anonymousNbt" -> {
+            println("anonymousNbt!!")
+            readBytes()
+        }
+
         else -> throw IllegalStateException("$prefix Unknown type $type for field $name")
     }
 }

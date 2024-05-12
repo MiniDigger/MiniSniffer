@@ -12,7 +12,7 @@ This is work in progress. Here is a small todo list:
   - [x] basic stuff (primitives + array and container)
   - [ ] parse switch
   - [x] parse option
-  - [ ] parse buffer
+  - [x] parse buffer
   - [ ] parse particleData
   - [ ] parse bitfield
   - [ ] parse topBitSetTerminatedArray
@@ -22,8 +22,11 @@ This is work in progress. Here is a small todo list:
   - [x] packet structure
   - [x] tags
   - [ ] nbt
+  - [ ] command node
+  - [ ] entity metadata
   - [ ] compression
   - [ ] encryption
+  - [ ] fix ignored packets for sending
 - [ ] proxy traffic
   - [x] basic logging proxy
   - [ ] filter packets
