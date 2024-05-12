@@ -1,5 +1,7 @@
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
+import io.ktor.utils.io.streams.*
+import org.jglrxavpok.hephaistos.nbt.*
 import java.util.*
 import kotlin.experimental.and
 
@@ -65,6 +67,13 @@ fun ByteReadPacket.readString(max: Int = -1): String {
         size > max -> error("The string size is larger than the supported: $max")
         else -> readBytes(size).decodeToString()
     }
+}
+
+fun ByteReadPacket.readNbt(): NBT {
+    val nbtReader = NBTReader(inputStream(), CompressedProcesser.NONE)
+    val tagId = readByte()
+    if (tagId.toInt() == NBTType.TAG_End.ordinal) return NBTEnd
+    return nbtReader.readRaw(tagId.toInt())
 }
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -138,6 +147,7 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
         "f64" -> readDouble()
         "UUID" -> readUuid()
         "restBuffer" -> readBytes()
+        "anonymousNbt" -> readNbt()
         "position" -> {
             val long = readLong()
             val x = long shr 38
@@ -155,6 +165,20 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
             val count = readByte()
             val nbt = readBytes()
             Slot(item, count, nbt)
+        }
+
+        "tags" -> {
+            val length = readVarInt()
+            val tags = mutableMapOf<String, List<Int>>()
+            repeat(length) {
+                val tag = readString()
+                val entries = mutableListOf<Int>()
+                repeat(readVarInt()) {
+                    entries.add(readVarInt())
+                }
+                tags[tag] = entries
+            }
+            tags
         }
 
         is BufferField -> readBytes(readMinecraftType("$name.size", type.countType, debugPrefix) as Int)
@@ -177,25 +201,6 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
             Optional.ofNullable(readMinecraftType(name, type.type, debugPrefix))
         } else {
             Optional.empty()
-        }
-
-        "tags" -> {
-            val length = readVarInt()
-            val tags = mutableMapOf<String, List<Int>>()
-            repeat(length) {
-                val tag = readString()
-                val entries = mutableListOf<Int>()
-                repeat(readVarInt()) {
-                    entries.add(readVarInt())
-                }
-                tags[tag] = entries
-            }
-            tags
-        }
-        // todo fix codec
-        "anonymousNbt" -> {
-            println("anonymousNbt!!")
-            readBytes()
         }
 
         else -> throw IllegalStateException("$prefix Unknown type $type for field $name")

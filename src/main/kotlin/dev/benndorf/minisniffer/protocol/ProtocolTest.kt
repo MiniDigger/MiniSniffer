@@ -10,8 +10,8 @@ val ignoredForSending = setOf("registry_data", "tags", "declare_recipes", "map_c
 val ignoredForParsing = setOf(
     // TODO switch
     "declare_recipes", "unlock_recipes", "player_info", "sound_effect",
-    // TODO anonymousNbt
-    "server_data", "system_chat", "map_chunk", "advancements",
+    // TODO bitfield
+    "advancements",
     // TODO command_node
     "declare_commands",
     // TODO entityMetadata

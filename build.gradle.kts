@@ -47,7 +47,7 @@ kotlin {
         implementation("io.nacular.doodle:themes:$doodleVersion")
 
         implementation("io.ktor:ktor-network:$ktorVersion")
-        implementation("com.benasher44:uuid:0.3.1")
+        implementation("io.github.jglrxavpok.hephaistos:common:2.6.1")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     }

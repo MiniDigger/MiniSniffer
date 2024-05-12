@@ -21,7 +21,7 @@ This is work in progress. Here is a small todo list:
   - [x] basic data types (primitives + array and container)
   - [x] packet structure
   - [x] tags
-  - [ ] nbt
+  - [x] nbt
   - [ ] command node
   - [ ] entity metadata
   - [ ] compression
@@ -33,6 +33,7 @@ This is work in progress. Here is a small todo list:
     - [ ] basic filtering
     - [ ] scripting
   - [ ] customize logging behavior per packet (to reduce spam)
+    - [ ] serialize chat components using adventure to ansi?
 - [ ] gui
 
 Updates:
