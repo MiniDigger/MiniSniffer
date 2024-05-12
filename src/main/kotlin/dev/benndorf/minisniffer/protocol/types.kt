@@ -161,9 +161,9 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
             if (present == 0.toByte()) {
                 return null
             }
-            val item = readShort()
+            val item = readVarInt()
             val count = readByte()
-            val nbt = readBytes()
+            val nbt = readNbt()
             Slot(item, count, nbt)
         }
 

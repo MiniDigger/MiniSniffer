@@ -3,6 +3,7 @@ import io.ktor.utils.io.core.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonArray
+import org.jglrxavpok.hephaistos.nbt.NBT
 import java.util.LinkedHashMap
 
 @Serializable
@@ -129,4 +130,4 @@ data class ContainerField(val fields: Map<String, Any>)
 data class OptionalField(val type: Any)
 
 data class Position(val x: Int, val y: Int, val z: Int)
-data class Slot(val item: Short, val count: Byte, val nbt: ByteArray)
+data class Slot(val item: Int, val count: Byte, val nbt: NBT)
