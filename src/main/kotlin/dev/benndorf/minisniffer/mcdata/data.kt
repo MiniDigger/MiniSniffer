@@ -124,3 +124,4 @@ data class Packet(
 
 data class ArrayField(val type: Any, val countType: String)
 data class ContainerField(val fields: Map<String, Any>)
+data class OptionalField(val type: Any)

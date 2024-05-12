@@ -11,7 +11,7 @@ This is work in progress. Here is a small todo list:
 - [ ] Parse mcdata
   - [x] basic stuff (primitives + array and container)
   - [ ] parse switch
-  - [ ] parse option
+  - [x] parse option
   - [ ] parse buffer
   - [ ] parse particleData
   - [ ] parse bitfield

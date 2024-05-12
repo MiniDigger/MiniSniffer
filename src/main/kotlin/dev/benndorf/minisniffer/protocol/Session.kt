@@ -4,6 +4,7 @@ import Packet
 import ProtocolState.*
 import dev.benndorf.minisniffer.mcdata.parseProtocolData
 import io.ktor.network.sockets.*
+import io.ktor.utils.io.core.*
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -32,34 +33,39 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
         startClientListener()
     }
 
-    private fun startServerListener() = launch(CoroutineName("session-${clientSocket.remoteAddress}-reader")) {
+    private fun startServerListener() = launch(CoroutineName("session-${clientSocket.remoteAddress}-server")) {
         try {
             println("start reading from server")
             while (true) {
                 if (protocolData == null) throw IllegalStateException("Protocol data not loaded")
                 val packet = fromServer.readMinecraftPacket(
                     { protocolData!![serverState].toClient },
-                    { "toClient[$serverState]" }
+                    { "S -> C [$serverState]" }
                 )
+                // todo fix registry data and tags
+                if (packet.name != "registry_data" && packet.name != "tags") {
+                    toClient.sendMinecraftPacket(packet)
+                } else {
+                    packet.data?.readBytes()
+                }
                 handleServerPacket(packet)
-                toClient.sendMinecraftPacket(packet)
             }
         } catch (error: Throwable) {
             handleError(error, "server")
         }
     }
 
-    private fun startClientListener() = launch(CoroutineName("session-${clientSocket.remoteAddress}-sender")) {
+    private fun startClientListener() = launch(CoroutineName("session-${clientSocket.remoteAddress}-client")) {
         try {
             println("start reading from client")
             while (true) {
                 if (protocolData == null) throw IllegalStateException("Protocol data not loaded")
                 val packet = fromClient.readMinecraftPacket(
                     { protocolData!![clientState].toServer },
-                    { "toServer[$clientState]" }
+                    { "C -> S [$clientState]" }
                 )
-                handleClientPacket(packet)
                 toServer.sendMinecraftPacket(packet)
+                handleClientPacket(packet)
             }
         } catch (error: Throwable) {
             handleError(error, "client")

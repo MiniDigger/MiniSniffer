@@ -1,6 +1,6 @@
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
-import java.util.UUID
+import java.util.*
 import kotlin.experimental.and
 
 suspend fun ByteWriteChannel.writeVarInt(value: Int): Unit = writeVarInt(value) { writeByte(it) }
@@ -67,14 +67,29 @@ fun ByteReadPacket.readString(max: Int = -1): String {
     }
 }
 
+@OptIn(ExperimentalStdlibApi::class)
+val format = HexFormat {
+    bytes.bytesPerGroup = 1
+    bytes.bytePrefix = "0x"
+    bytes.groupSeparator = " "
+}
+const val hexLogging = false
+
+@OptIn(ExperimentalStdlibApi::class)
 suspend fun ByteWriteChannel.sendMinecraftPacket(packet: Packet) {
     if (packet.data == null) throw IllegalStateException("Packet data is null")
+
     val bytes = packet.data.readBytes()
     writeVarInt(bytes.size)
     writeAvailable(bytes)
     flush()
+    println("flushed packet ${packet.name} with size ${bytes.size}")
+    if (hexLogging) {
+        println(bytes.toHexString(format))
+    }
 }
 
+@OptIn(ExperimentalStdlibApi::class)
 suspend fun ByteReadChannel.readMinecraftPacket(
     protocolData: () -> ProtocolData.Side,
     debugPrefix: () -> String
@@ -88,13 +103,16 @@ suspend fun ByteReadChannel.readMinecraftPacket(
     val packetDefinition =
         protocolData().packetsById[id] ?: throw IllegalStateException("$prefix Unknown packet id $id")
     prefix = "$prefix[${packetDefinition.name}]"
-    // println("$prefix start reading packet ${packetDefinition.fieldDefinitions}")
+    println("$prefix start reading packet ${packetDefinition.fieldDefinitions}")
     val fields = packetDefinition.fieldDefinitions.entries.associate { (name, type) ->
         name to packet.readMinecraftType(name, type) { prefix }
     }
 
     val parsedPacket = Packet(id, packetDefinition.name, packetDefinition.fieldDefinitions, fields, data)
     println("$prefix got packet $parsedPacket")
+    if (hexLogging) {
+        println(data.copy().readBytes().toHexString(format))
+    }
     if (packet.remaining > 0) throw IllegalStateException("$prefix packet has remaining data: ${packet.remaining}");
     return parsedPacket
 }
@@ -111,10 +129,12 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
         "u8" -> readUByte()
         "u16" -> readUShort()
         "i32" -> readInt()
+        "f32" -> readFloat()
         "i64" -> readLong()
+        "f64" -> readDouble()
         "UUID" -> readUuid()
         "buffer" -> readBytes(readVarInt())
-        "restBuffer" -> readBytes(remaining.toInt())
+        "restBuffer" -> readBytes()
         is ArrayField -> {
             val count = readMinecraftType(name, type.countType, debugPrefix) as Int
             val array = mutableListOf<Any>()
@@ -124,10 +144,16 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
             array
         }
 
-        is ContainerField ->
-            type.fields.entries.associate { (key, type) ->
-                key to readMinecraftType(key, type, debugPrefix)
-            }
+        is ContainerField -> type.fields.entries.associate { (key, type) ->
+            key to readMinecraftType(key, type, debugPrefix)
+        }
+
+        is OptionalField -> if (readByte() == 1.toByte()) {
+            Optional.of(readMinecraftType(name, type.type, debugPrefix))
+        } else {
+            Optional.empty()
+        }
+
         "tags" -> {
             val length = readVarInt()
             val tags = mutableMapOf<String, List<Int>>()
@@ -142,7 +168,7 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () ->
             tags
         }
         // todo fix codec
-        "anonymousNbt" -> readBytes(remaining.toInt())
+        "anonymousNbt" -> readBytes()
         else -> throw IllegalStateException("$prefix Unknown type $type for field $name")
     }
 }

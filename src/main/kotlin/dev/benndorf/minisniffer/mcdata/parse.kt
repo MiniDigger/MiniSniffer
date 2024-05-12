@@ -3,6 +3,7 @@ package dev.benndorf.minisniffer.mcdata
 import ArrayField
 import ContainerField
 import DataPaths
+import OptionalField
 import Packet
 import ProtocolData
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -87,8 +88,7 @@ fun parseType(fieldType: JsonElement?, fieldName: String): Any {
             )
             // TODO implement switch
             "switch" -> complexType
-            // TODO implement option
-            "option" -> complexType
+            "option" -> OptionalField(parseType(fieldType[1], fieldName))
             // TODO implement buffer
             "buffer" -> complexType
             // TODO implement particleData
