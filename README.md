@@ -36,6 +36,8 @@ This is work in progress. Here is a small todo list:
   - [ ] customize logging behavior per packet (to reduce spam)
     - [ ] serialize chat components using adventure to ansi?
 - [ ] gui
+- [ ] other ideas
+  - [ ] parse packets async 
 
 Updates:
 * 12.05.2024:  

@@ -3,6 +3,7 @@ import io.ktor.utils.io.core.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import org.jglrxavpok.hephaistos.nbt.NBT
 import java.util.LinkedHashMap
 
@@ -61,6 +62,7 @@ data class ProtocolData(
     val login: Phase,
     val configuration: Phase,
     val play: Phase,
+    val types: Map<String, JsonElement>,
 ) {
     operator fun get(state: ProtocolState): Phase {
         return when (state) {
@@ -106,7 +108,7 @@ data class ProtocolData(
 data class Packet(
     val id: Int,
     val name: String,
-    val fieldDefinitions: LinkedHashMap<String, Any>,
+    val fieldDefinitions: LinkedHashMap<String, Field>,
     val fields: Map<String, Any?> = LinkedHashMap(),
     val data: ByteReadPacket? = null
 ) {
@@ -133,15 +135,21 @@ data class Packet(
     }
 }
 
-data class BufferField( val countType: String)
-data class CountedBufferField(val count: Int)
-data class ArrayField(val type: Any, val countType: String)
-data class ContainerField(val fields: Map<String, Any>)
-data class OptionalField(val type: Any)
-data class BitSetField(val entries: List<BitSetEntry>) {
+open class Field(val typeName: String)
+data class NativeField(val name: String) : Field(name)
+data class BufferField( val countType: Field) : Field("buffer")
+data class CountedBufferField(val count: Int): Field("buffer")
+data class ArrayField(val type: Field, val countType: Field): Field("array")
+data class ContainerField(val fields: Map<String, Field>): Field("container")
+data class OptionalField(val type: Field): Field("option")
+data class MapperField(val type: Field, val mappings: Map<String, Any>): Field("mapper")
+data class BitSetField(val entries: List<BitSetEntry>): Field("bitfield") {
     val numBytes = entries.sumOf { it.bits } / 8
+    data class BitSetEntry(val name: String, val bits: Int, val signed: Boolean)
 }
-data class BitSetEntry(val name: String, val bits: Int, val signed: Boolean)
+
+// TODO remove
+data class TodoField(val type: String, val name: String): Field(type)
 
 data class Position(val x: Int, val y: Int, val z: Int)
 data class Slot(val item: Int, val count: Byte, val nbt: NBT)

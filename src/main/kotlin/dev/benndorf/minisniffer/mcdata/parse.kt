@@ -1,15 +1,18 @@
 package dev.benndorf.minisniffer.mcdata
 
 import ArrayField
-import BitSetEntry
 import BitSetField
 import BufferField
 import ContainerField
 import CountedBufferField
 import DataPaths
+import Field
+import MapperField
+import NativeField
 import OptionalField
 import Packet
 import ProtocolData
+import TodoField
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.*
 
@@ -29,22 +32,22 @@ fun parseProtocolData(version: String): ProtocolData? {
 
 
     protocolData?.let {
-        parsePhase(it.handshaking)
-        parsePhase(it.status)
-        parsePhase(it.login)
-        parsePhase(it.configuration)
-        parsePhase(it.play)
+        parsePhase(it.types, it.handshaking)
+        parsePhase(it.types, it.status)
+        parsePhase(it.types, it.login)
+        parsePhase(it.types, it.configuration)
+        parsePhase(it.types, it.play)
     }
 
     return protocolData
 }
 
-fun parsePhase(phase: ProtocolData.Phase) {
-    parseSide(phase.toClient)
-    parseSide(phase.toServer)
+fun parsePhase(types: Map<String, JsonElement>, phase: ProtocolData.Phase) {
+    parseSide(types, phase.toClient)
+    parseSide(types, phase.toServer)
 }
 
-fun parseSide(side: ProtocolData.Side) {
+fun parseSide(types: Map<String, JsonElement>, side: ProtocolData.Side) {
     val meta = (side.types["packet"]?.get(1) ?: return) as JsonArray
     val idMapping = (((meta[0] as JsonObject)["type"] as JsonArray)[1] as JsonObject)["mappings"] as JsonObject
     val nameMapping = (((meta[1] as JsonObject)["type"] as JsonArray)[1] as JsonObject)["fields"] as JsonObject
@@ -53,7 +56,7 @@ fun parseSide(side: ProtocolData.Side) {
         Packet(
             k.replace("0x", "").toInt(16),
             v.jsonPrimitive.content,
-            parseFields(nameMapping[v.jsonPrimitive.content]!!.jsonPrimitive.content, side)
+            parseFields(types, nameMapping[v.jsonPrimitive.content]!!.jsonPrimitive.content, side)
         )
     }
     side.packetsById = side.packets.associateBy { it.id }
@@ -61,66 +64,86 @@ fun parseSide(side: ProtocolData.Side) {
     side.types.clear()
 }
 
-fun parseFields(name: String, side: ProtocolData.Side): LinkedHashMap<String, Any> {
+fun parseFields(types: Map<String, JsonElement>, name: String, side: ProtocolData.Side): LinkedHashMap<String, Field> {
     if (name == "void") return linkedMapOf()
     val fields = side.types[name]?.get(1) as JsonArray
-    val result = linkedMapOf<String, Any>()
+    val result = linkedMapOf<String, Field>()
     fields.forEach { field ->
         val fieldObj = field as JsonObject
         val fieldName = fieldObj["name"]?.jsonPrimitive?.content ?: return@forEach
-        result[fieldName] = parseType(fieldObj["type"], fieldName)
+        result[fieldName] = parseType(types, fieldObj["type"], fieldName)
     }
 
     return result
 }
 
-fun parseType(fieldType: JsonElement?, fieldName: String): Any {
+fun parseType(types: Map<String, JsonElement>, fieldType: JsonElement?, fieldName: String): Field {
     return when (fieldType) {
-        // TODO look up if its native for composite!
-        is JsonPrimitive -> fieldType.jsonPrimitive.content
+        is JsonPrimitive -> {
+            val typeName = fieldType.jsonPrimitive.content
+            val type = types[typeName] ?: throw IllegalArgumentException("unknown type $typeName for field $fieldName")
+            if (type is JsonPrimitive) {
+                if (type.content == "native") NativeField(typeName)
+                else {
+                    throw IllegalArgumentException("unknown primitive type $typeName -> ${type.content} for field $fieldName")
+                }
+            } else if (type is JsonArray) {
+                val complexType = type[0].jsonPrimitive.content
+                if (complexType == "pstring") NativeField("string")
+                else parseType(types, type, typeName)
+            } else {
+                throw IllegalArgumentException("unknown type $typeName -> $type for field $fieldName")
+            }
+        }
 
         is JsonArray -> when (val complexType = fieldType[0].jsonPrimitive.content) {
             "array" -> ArrayField(
-                parseType(fieldType[1].jsonObject["type"], fieldName),
-                fieldType[1].jsonObject["countType"]!!.jsonPrimitive.content
+                parseType(types, fieldType[1].jsonObject["type"], "$fieldName -> type"),
+                parseType(types, fieldType[1].jsonObject["countType"], "$fieldName -> counter"),
             )
 
             "container" -> ContainerField(
                 fieldType[1].jsonArray.associate {
-                    val name = it.jsonObject["name"]!!.jsonPrimitive.content
-                    name to parseType(it.jsonObject["type"], name)
+                    val name = it.jsonObject["name"]?.jsonPrimitive?.content ?: "anon"
+                    name to parseType(types, it.jsonObject["type"], "$fieldName -> $name")
                 }
             )
-            // TODO implement switch
-            "switch" -> complexType
-            "option" -> OptionalField(parseType(fieldType[1], fieldName))
+
+            "switch" -> TodoField("switch", fieldName) // TODO implement switch
+            "option" -> OptionalField(parseType(types, fieldType[1], "$fieldName -> option"))
             "buffer" -> {
                 val countType = fieldType[1].jsonObject["countType"]
                 val count = fieldType[1].jsonObject["count"]
                 if (countType != null) {
-                    BufferField(countType.jsonPrimitive.content)
+                    BufferField(parseType(types, countType, "$fieldName -> counter"))
                 } else if (count != null) {
                     CountedBufferField(count.jsonPrimitive.int)
                 } else {
                     throw IllegalArgumentException("buffer field $fieldName is invalid; $fieldType")
                 }
             }
-            // TODO implement particleData
-            "particleData" -> complexType
+
+            "mapper" -> MapperField(
+                parseType(types, fieldType[1].jsonObject["type"], "$fieldName -> type"),
+                fieldType[1].jsonObject["mappings"]!!.jsonObject
+            )
+
+            "particleData" -> TodoField("particleData", fieldName) // TODO implement particleData
             "bitfield" -> BitSetField(fieldType[1].jsonArray.map {
                 val entry = it.jsonObject
-                BitSetEntry(
+                BitSetField.BitSetEntry(
                     entry["name"]!!.jsonPrimitive.content,
                     entry["size"]!!.jsonPrimitive.int,
                     entry["signed"]!!.jsonPrimitive.boolean
                 )
             })
-            // TODO implement topBitSetTerminatedArray
-            "topBitSetTerminatedArray" -> complexType
-            else -> {
-                println("unknown complex type $complexType for field $fieldName")
-                complexType
-            }
+
+            "topBitSetTerminatedArray" -> TodoField(
+                "topBitSetTerminatedArray",
+                fieldName
+            ) // TODO implement topBitSetTerminatedArray
+            "entityMetadataLoop" -> TodoField("entityMetadataLoop", fieldName) // TODO implement entityMetadataLoop
+            else -> throw IllegalArgumentException("unknown complex type $complexType for field $fieldName")
         }
 
         else -> throw IllegalArgumentException("unknown type $fieldType")

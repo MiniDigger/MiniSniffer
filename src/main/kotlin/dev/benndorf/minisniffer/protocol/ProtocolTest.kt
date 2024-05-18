@@ -9,11 +9,15 @@ import kotlinx.coroutines.runBlocking
 val ignoredForSending = setOf("registry_data", "tags", "declare_recipes", "map_chunk")
 val ignoredForParsing = setOf(
     // TODO switch
-    "declare_recipes", "unlock_recipes", "player_info", "sound_effect", "advancements",
+    "declare_recipes", "unlock_recipes", "player_info", "sound_effect", "advancements", "window_items", "set_slot",
     // TODO command_node
     "declare_commands",
     // TODO entityMetadata
     "entity_metadata",
+    // TODO topBitSetTerminatedArray
+    "entity_equipment",
+    // TODO anonOptionalNbt
+    "map_chunk",
 )
 
 fun main(): Unit = runBlocking(SupervisorJob()) {

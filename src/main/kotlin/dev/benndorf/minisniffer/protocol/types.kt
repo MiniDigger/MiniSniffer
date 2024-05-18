@@ -131,56 +131,30 @@ suspend fun ByteReadChannel.readMinecraftPacket(
 }
 
 @OptIn(ExperimentalUnsignedTypes::class)
-fun ByteReadPacket.readMinecraftType(name: String, type: Any, debugPrefix: () -> String): Any? {
+fun ByteReadPacket.readMinecraftType(name: String, type: Field, debugPrefix: () -> String): Any? {
     val prefix = debugPrefix()
     // println("$prefix reading field $name of type $type")
     return when (type) {
-        "string" -> readString()
-        "varint" -> readVarInt()
-        "bool" -> readByte() == 1.toByte()
-        "i8" -> readByte()
-        "u8" -> readUByte()
-        "u16" -> readUShort()
-        "i16" -> readShort()
-        "i32" -> readInt()
-        "f32" -> readFloat()
-        "i64" -> readLong()
-        "f64" -> readDouble()
-        "UUID" -> readUuid()
-        "restBuffer" -> readBytes()
-        "anonymousNbt" -> readNbt()
-        // TODO don't implement them manually, look them up in the protocol...
-        "position" -> {
-            val long = readLong()
-            val x = long shr 38
-            val y = long shl 52 shr 52
-            val z = long shl 26 shr 38
-            Position(x.toInt(), y.toInt(), z.toInt())
-        }
-
-        "slot" -> {
-            val present = readByte()
-            if (present == 0.toByte()) {
-                return null
-            }
-            val item = readVarInt()
-            val count = readByte()
-            val nbt = readNbt()
-            Slot(item, count, nbt)
-        }
-
-        "tags" -> {
-            val length = readVarInt()
-            val tags = mutableMapOf<String, List<Int>>()
-            repeat(length) {
-                val tag = readString()
-                val entries = mutableListOf<Int>()
-                repeat(readVarInt()) {
-                    entries.add(readVarInt())
-                }
-                tags[tag] = entries
-            }
-            tags
+        is NativeField -> when (type.name) {
+            "void" -> Unit
+            "string" -> readString()
+            "varint" -> readVarInt()
+            "varlong" -> TODO()
+            "bool" -> readByte() == 1.toByte()
+            "u8" -> readUByte()
+            "u16" -> readUShort()
+            "u32" -> readUInt()
+            "u64" -> readULong()
+            "i8" -> readByte()
+            "i16" -> readShort()
+            "i32" -> readInt()
+            "i64" -> readLong()
+            "f32" -> readFloat()
+            "f64" -> readDouble()
+            "UUID" -> readUuid()
+            "restBuffer" -> readBytes()
+            "anonymousNbt" -> readNbt()
+            else -> throw IllegalStateException("$prefix Unknown native type ${type.name} for field $name")
         }
 
         is BufferField -> readBytes(readMinecraftType("$name.size", type.countType, debugPrefix) as Int)
