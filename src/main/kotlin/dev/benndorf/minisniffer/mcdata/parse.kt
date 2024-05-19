@@ -12,6 +12,7 @@ import NativeField
 import OptionalField
 import Packet
 import ProtocolData
+import ProtocolVersion
 import SwitchField
 import TodoField
 import VoidField
@@ -24,12 +25,17 @@ import java.util.LinkedHashMap
 private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
 @OptIn(ExperimentalSerializationApi::class)
-fun parseProtocolData(version: String): ProtocolData? {
+fun parseProtocolData(protocolVersion: Int): ProtocolData? {
     val rootPath = Path.of("./minecraft-data/data")
+    val protocolVersions = json.decodeFromStream<List<ProtocolVersion>>(
+        rootPath.resolve("pc/common/protocolVersions.json").toFile().inputStream()
+    )
     val dataPaths =
         json.decodeFromStream<DataPaths>(rootPath.resolve("dataPaths.json").toFile().inputStream())
 
-    val protocolPath = dataPaths.pc[version]?.protocol?.let { rootPath.resolve(it).resolve("protocol.json") }
+    val displayVersion = protocolVersions.find { it.version == protocolVersion }?.minecraftVersion
+        ?: throw IllegalArgumentException("unknown protocol version $protocolVersion")
+    val protocolPath = dataPaths.pc[displayVersion]?.protocol?.let { rootPath.resolve(it).resolve("protocol.json") }
     val protocolData = protocolPath?.let { json.decodeFromStream<ProtocolData>(it.toFile().inputStream()) }
 
 
@@ -37,9 +43,11 @@ fun parseProtocolData(version: String): ProtocolData? {
         parsePhase(it.types, it.handshaking)
         parsePhase(it.types, it.status)
         parsePhase(it.types, it.login)
-        parsePhase(it.types, it.configuration)
+        it.configuration?.let { config -> parsePhase(it.types, config) }
         parsePhase(it.types, it.play)
     }
+
+    println("parsed protocol for $displayVersion ($protocolVersion)")
 
     return protocolData
 }

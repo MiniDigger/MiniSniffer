@@ -15,7 +15,7 @@ val ignoredForParsing = setOf(
     // TODO bug in switch
     "declare_recipes",
     // TODO nested switch
-    "declare_commands"
+    "declare_commands", "advancements"
 )
 
 fun main(): Unit = runBlocking(SupervisorJob()) {

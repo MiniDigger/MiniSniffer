@@ -16,7 +16,7 @@ This is work in progress. Here is a small todo list:
   - [ ] parse particleData
   - [x] parse bitfield
   - [ ] parse topBitSetTerminatedArray
-  - [ ] map protocol version to string
+  - [x] map protocol version to string
 - [ ] Implement minecraft protocol
   - [x] basic data types (primitives + array and container)
   - [x] packet structure
@@ -47,5 +47,8 @@ Updates:
   SLP: https://pastes.dev/P9Za2ysBKQ  
   Join: https://pastes.dev/ZuW3GudtTF
 * 12.05.2024 v2:
-  bunch of more data types (including nbt), gets stuff sending a few packets, so we have to skip, but parses many
+  bunch of more data types (including nbt), gets stuck sending a few packets, so we have to skip, but parses many
   https://pastes.dev/o4m7RvxH7Q
+* 19.05.2024:
+  fixed sending, we now spawn properly, most packets can get parsed, joining in any modern version works
+  https://pastes.dev/XkoMh81kB6 (1.16.5 join)

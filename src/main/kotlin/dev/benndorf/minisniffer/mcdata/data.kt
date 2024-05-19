@@ -37,6 +37,16 @@ data class DataPath(
     val sounds: String? = null,
 )
 
+@Serializable
+data class ProtocolVersion(
+    val minecraftVersion: String,
+    val version: Int,
+    val dataVersion: Int? = null,
+    val usesNetty: Boolean,
+    val majorVersion: String,
+    val releaseType: String = "release",
+)
+
 enum class ProtocolState {
     HANDSHAKING,
     STATUS,
@@ -60,7 +70,7 @@ data class ProtocolData(
     val handshaking: Phase,
     val status: Phase,
     val login: Phase,
-    val configuration: Phase,
+    val configuration: Phase? = null,
     val play: Phase,
     val types: Map<String, JsonElement>,
 ) {
@@ -69,7 +79,7 @@ data class ProtocolData(
             HANDSHAKING -> handshaking
             STATUS -> status
             LOGIN -> login
-            CONFIGURATION -> configuration
+            CONFIGURATION -> configuration!!
             PLAY -> play
         }
     }

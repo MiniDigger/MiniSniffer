@@ -2,6 +2,7 @@ import dev.benndorf.minisniffer.protocol.BitReader
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import io.ktor.utils.io.streams.*
+import io.nacular.doodle.animation.repeat
 import org.jglrxavpok.hephaistos.nbt.*
 import java.util.*
 import kotlin.experimental.and
@@ -73,11 +74,15 @@ fun ByteReadPacket.readString(max: Int = -1): String {
     }
 }
 
-fun ByteReadPacket.readNbt(): NBT {
+fun ByteReadPacket.readNbt(legacy: Boolean = false): NBT {
     val nbtReader = NBTReader(inputStream(), CompressedProcesser.NONE)
-    val tagId = readByte()
-    if (tagId.toInt() == NBTType.TAG_End.ordinal) return NBTEnd
-    return nbtReader.readRaw(tagId.toInt())
+    return if (legacy) {
+        nbtReader.read()
+    } else {
+        val tagId = readByte()
+        if (tagId.toInt() == NBTType.TAG_End.ordinal) return NBTEnd
+        nbtReader.readRaw(tagId.toInt())
+    }
 }
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -162,6 +167,7 @@ fun ByteReadPacket.readMinecraftType(
             "UUID" -> readUuid()
             "restBuffer" -> readBytes()
             "anonymousNbt" -> readNbt()
+            "nbt" -> readNbt(legacy = true)
             else -> throw IllegalStateException("$prefix Unknown native type ${type.name} for field $name")
         }
 
@@ -170,9 +176,9 @@ fun ByteReadPacket.readMinecraftType(
         is CountedBufferField -> readBytes(type.count)
 
         is ArrayField -> {
-            val count = readMinecraftType("$name.size", type.countType, fields, debugPrefix) as Int
+            val count = readMinecraftType("$name.size", type.countType, fields, debugPrefix) as Number
             val array = mutableListOf<Any?>()
-            repeat(count) {
+            repeat(count.toInt()) {
                 array.add(readMinecraftType("$name.entry", type.type, fields, debugPrefix))
             }
             array

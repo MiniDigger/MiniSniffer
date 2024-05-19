@@ -17,7 +17,7 @@ import kotlin.coroutines.cancellation.CancellationException
 data class Session(val clientSocket: Socket, val serverSocket: Socket) :
     CoroutineScope by CoroutineScope(CoroutineName("session-${clientSocket.remoteAddress}")) {
 
-    private var protocolData = parseProtocolData("1.20.4") // default to 1.20.4, will be overriden in handshake
+    private var protocolData = parseProtocolData(765) // default to 1.20.4, will be overriden in handshake
     private var protocolVersion: Int = -1
 
     private var clientState = HANDSHAKING
@@ -89,6 +89,12 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
             "finish_configuration" -> {
                 serverState = PLAY
             }
+
+            // pre config phase
+            "success" -> {
+                clientState = PLAY
+                serverState = PLAY
+            }
         }
     }
 
@@ -101,7 +107,7 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
                     else -> throw IllegalStateException("Unknown state ${packet.fields["nextState"]}")
                 }
                 protocolVersion = packet.fields["protocolVersion"] as Int
-                protocolData = parseProtocolData("1.20.4") // TODO parse via protocol version
+                protocolData = parseProtocolData(protocolVersion)
                 serverState = clientState
             }
 
