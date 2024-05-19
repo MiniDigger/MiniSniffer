@@ -27,7 +27,7 @@ This is work in progress. Here is a small todo list:
   - [x] bitsetfield
   - [ ] compression
   - [ ] encryption
-  - [ ] fix ignored packets for sending
+  - [x] fix ignored packets for sending
 - [ ] proxy traffic
   - [x] basic logging proxy
   - [ ] filter packets

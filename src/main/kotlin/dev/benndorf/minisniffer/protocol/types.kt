@@ -94,7 +94,7 @@ suspend fun ByteWriteChannel.sendMinecraftPacket(packet: Packet) {
 
     val bytes = packet.data.readBytes()
     writeVarInt(bytes.size)
-    writeAvailable(bytes)
+    writeFully(bytes)
     flush()
 //    println("flushed packet ${packet.name} with size ${bytes.size}")
     if (hexLogging) {

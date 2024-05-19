@@ -5,8 +5,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 
-// TODO fix these, sending them causes the client to stall
-val ignoredForSending = setOf<String>(/*"registry_data", "tags", "declare_recipes", "map_chunk"*/)
 val ignoredForParsing = setOf(
     // TODO entityMetadataLoop
     "entity_metadata",

@@ -3,9 +3,7 @@ package dev.benndorf.minisniffer.protocol
 import Packet
 import ProtocolState.*
 import dev.benndorf.minisniffer.mcdata.parseProtocolData
-import ignoredForSending
 import io.ktor.network.sockets.*
-import io.ktor.utils.io.core.*
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -44,11 +42,7 @@ data class Session(val clientSocket: Socket, val serverSocket: Socket) :
                     { protocolData!![serverState].toClient },
                     { "S -> C [${serverState.toPrettyString()}]" }
                 )
-                if (!ignoredForSending.contains(packet.name)) {
-                    toClient.sendMinecraftPacket(packet)
-                } else {
-                    packet.data?.readBytes()
-                }
+                toClient.sendMinecraftPacket(packet)
                 handleServerPacket(packet)
             }
         } catch (error: Throwable) {
