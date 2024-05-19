@@ -117,8 +117,9 @@ suspend fun ByteReadChannel.readMinecraftPacket(
     if (ignoredForParsing.contains(packetDefinition.name)) {
         return Packet(id, packetDefinition.name, packetDefinition.fieldDefinitions, mapOf(), data)
     }
-    val fields = packetDefinition.fieldDefinitions.entries.associate { (name, type) ->
-        name to packet.readMinecraftType(name, type) { prefix }
+    val fields = mutableMapOf<String, Any?>()
+    packetDefinition.fieldDefinitions.entries.forEach { (name, type) ->
+        fields[name] = packet.readMinecraftType(name, type, fields) { prefix }
     }
 
     val parsedPacket = Packet(id, packetDefinition.name, packetDefinition.fieldDefinitions, fields, data)
@@ -131,12 +132,16 @@ suspend fun ByteReadChannel.readMinecraftPacket(
 }
 
 @OptIn(ExperimentalUnsignedTypes::class)
-fun ByteReadPacket.readMinecraftType(name: String, type: Field, debugPrefix: () -> String): Any? {
+fun ByteReadPacket.readMinecraftType(
+    name: String,
+    type: Field,
+    fields: MutableMap<String, Any?>,
+    debugPrefix: () -> String
+): Any? {
     val prefix = debugPrefix()
     // println("$prefix reading field $name of type $type")
     return when (type) {
         is NativeField -> when (type.name) {
-            "void" -> Unit
             "string" -> readString()
             "varint" -> readVarInt()
             "varlong" -> TODO()
@@ -157,32 +162,48 @@ fun ByteReadPacket.readMinecraftType(name: String, type: Field, debugPrefix: () 
             else -> throw IllegalStateException("$prefix Unknown native type ${type.name} for field $name")
         }
 
-        is BufferField -> readBytes(readMinecraftType("$name.size", type.countType, debugPrefix) as Int)
+        is VoidField -> Unit
+        is BufferField -> readBytes(readMinecraftType("$name.size", type.countType, fields, debugPrefix) as Int)
         is CountedBufferField -> readBytes(type.count)
 
         is ArrayField -> {
-            val count = readMinecraftType("$name.size", type.countType, debugPrefix) as Int
+            val count = readMinecraftType("$name.size", type.countType, fields, debugPrefix) as Int
             val array = mutableListOf<Any?>()
             repeat(count) {
-                array.add(readMinecraftType("$name.entry", type.type, debugPrefix))
+                array.add(readMinecraftType("$name.entry", type.type, fields, debugPrefix))
             }
             array
         }
 
         is ContainerField -> type.fields.entries.associate { (key, type) ->
-            key to readMinecraftType(key, type, debugPrefix)
+            key to readMinecraftType(key, type, fields, debugPrefix)
         }
 
         is OptionalField -> if (readByte() == 1.toByte()) {
-            Optional.ofNullable(readMinecraftType(name, type.type, debugPrefix))
+            Optional.ofNullable(readMinecraftType(name, type.type, fields, debugPrefix))
         } else {
             Optional.empty()
         }
 
         is BitSetField -> {
             val reader = BitReader(readBytes(type.numBytes))
-
+            // TODO signed vs unsigned
             type.entries.associate { it.name to reader.readBits(it.bits) }
+        }
+
+        is MapperField -> {
+            val value = readMinecraftType("$name.value", type.type, fields, debugPrefix)
+            type.mappings[value.toString()]
+        }
+
+        is SwitchField -> {
+            val path = type.compareTo.replaceFirst("../", "")
+            if (path.contains("/")) {
+                throw IllegalStateException("$prefix complex switch $type for field $name ($path)")
+            }
+            val value = fields[path]
+            val field = type.fields[value.toString()] ?: type.default
+            readMinecraftType("$name.$value", field, fields, debugPrefix)
         }
 
         else -> throw IllegalStateException("$prefix Unknown type $type for field $name")

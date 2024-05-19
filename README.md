@@ -38,6 +38,8 @@ This is work in progress. Here is a small todo list:
 - [ ] gui
 - [ ] other ideas
   - [ ] parse packets async 
+- [ ] fix bugs
+  - [ ] multi_block_change seems wrong
 
 Updates:
 * 12.05.2024:  

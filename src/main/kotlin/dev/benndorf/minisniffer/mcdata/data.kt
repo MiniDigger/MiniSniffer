@@ -136,6 +136,7 @@ data class Packet(
 }
 
 open class Field(val typeName: String)
+class VoidField : Field("void")
 data class NativeField(val name: String) : Field(name)
 data class BufferField( val countType: Field) : Field("buffer")
 data class CountedBufferField(val count: Int): Field("buffer")
@@ -143,6 +144,7 @@ data class ArrayField(val type: Field, val countType: Field): Field("array")
 data class ContainerField(val fields: Map<String, Field>): Field("container")
 data class OptionalField(val type: Field): Field("option")
 data class MapperField(val type: Field, val mappings: Map<String, Any>): Field("mapper")
+data class SwitchField(val compareTo: String, val fields: Map<String, Field>, val default: Field): Field("switch")
 data class BitSetField(val entries: List<BitSetEntry>): Field("bitfield") {
     val numBytes = entries.sumOf { it.bits } / 8
     data class BitSetEntry(val name: String, val bits: Int, val signed: Boolean)

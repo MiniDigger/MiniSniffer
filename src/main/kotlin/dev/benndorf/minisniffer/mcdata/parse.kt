@@ -12,7 +12,9 @@ import NativeField
 import OptionalField
 import Packet
 import ProtocolData
+import SwitchField
 import TodoField
+import VoidField
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.*
 
@@ -79,10 +81,13 @@ fun parseFields(types: Map<String, JsonElement>, name: String, side: ProtocolDat
 
 fun parseType(types: Map<String, JsonElement>, fieldType: JsonElement?, fieldName: String): Field {
     return when (fieldType) {
+        null -> VoidField()
         is JsonPrimitive -> {
             val typeName = fieldType.jsonPrimitive.content
             val type = types[typeName] ?: throw IllegalArgumentException("unknown type $typeName for field $fieldName")
-            if (type is JsonPrimitive) {
+            if (typeName == "void") {
+                VoidField()
+            } else if (type is JsonPrimitive) {
                 if (type.content == "native") NativeField(typeName)
                 else {
                     throw IllegalArgumentException("unknown primitive type $typeName -> ${type.content} for field $fieldName")
@@ -109,7 +114,14 @@ fun parseType(types: Map<String, JsonElement>, fieldType: JsonElement?, fieldNam
                 }
             )
 
-            "switch" -> TodoField("switch", fieldName) // TODO implement switch
+            "switch" -> SwitchField(
+                fieldType[1].jsonObject["compareTo"]!!.jsonPrimitive.content,
+                fieldType[1].jsonObject["fields"]!!.jsonObject.mapValues { (k, v) ->
+                    parseType(types, v, "$fieldName -> $k")
+                },
+                parseType(types, fieldType[1].jsonObject["default"], "$fieldName -> default"),
+            )
+
             "option" -> OptionalField(parseType(types, fieldType[1], "$fieldName -> option"))
             "buffer" -> {
                 val countType = fieldType[1].jsonObject["countType"]
