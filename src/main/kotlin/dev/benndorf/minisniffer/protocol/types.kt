@@ -9,8 +9,11 @@ import kotlin.experimental.and
 suspend fun ByteWriteChannel.writeVarInt(value: Int): Unit = writeVarInt(value) { writeByte(it) }
 fun BytePacketBuilder.writeVarInt(value: Int): Unit = writeVarInt(value) { writeByte(it) }
 
-suspend fun ByteReadChannel.readVarInt(): Int = readVarInt { readByte() }
-fun ByteReadPacket.readVarInt(): Int = readVarInt { readByte() }
+suspend fun ByteReadChannel.readVarInt(): Int = readVar(32) { readByte() }
+fun ByteReadPacket.readVarInt(): Int = readVar(32) { readByte() }
+
+suspend fun ByteReadChannel.readVarLong(): Int = readVar(64) { readByte() }
+fun ByteReadPacket.readVarLong(): Int = readVar(64) { readByte() }
 
 internal inline fun writeVarInt(value: Int, writeByte: (Byte) -> Unit) {
     var _value = value
@@ -26,13 +29,13 @@ internal inline fun writeVarInt(value: Int, writeByte: (Byte) -> Unit) {
     }
 }
 
-internal inline fun readVarInt(readByte: () -> Byte): Int {
+internal inline fun readVar(maxSize: Int, readByte: () -> Byte): Int {
     var offset = 0
     var value = 0L
     var byte: Byte
 
     do {
-        if (offset == 35) error("VarInt too long")
+        if (offset >= maxSize) error("VarInt/Long too long")
 
         byte = readByte()
         value = value or ((byte.toLong() and 0x7FL) shl offset)
@@ -144,7 +147,7 @@ fun ByteReadPacket.readMinecraftType(
         is NativeField -> when (type.name) {
             "string" -> readString()
             "varint" -> readVarInt()
-            "varlong" -> TODO()
+            "varlong" -> readVarLong()
             "bool" -> readByte() == 1.toByte()
             "u8" -> readUByte()
             "u16" -> readUShort()
